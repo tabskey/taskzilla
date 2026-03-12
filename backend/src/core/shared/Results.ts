@@ -1,21 +1,20 @@
 export class Result<T> {
-  public isSuccess: boolean;
-  public isFailure: boolean;
-  public error?: string;
-  private _value?: T;
+  public readonly isSuccess: boolean;
+  public readonly isFailure: boolean;
+  public readonly error?: string;
+  private readonly _value?: T;
 
   private constructor(isSuccess: boolean, error?: string, value?: T) {
     this.isSuccess = isSuccess;
     this.isFailure = !isSuccess;
-    this.error = error;
-    this._value = value;
+    this.error     = error;
+    this._value    = value;
   }
 
-  public get value(): T {
+  public getValue(): T {
     if (!this.isSuccess) {
-      throw new Error("Cannot get value of a failed result");
+      throw new Error(`Called getValue() on a failed Result. Error: ${this.error}`);
     }
-
     return this._value as T;
   }
 
