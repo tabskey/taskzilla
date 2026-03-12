@@ -19,7 +19,4 @@ const UserSchema = new Schema<IUserDocument>(
   { timestamps: true }
 );
 
-// índice para busca por email (login)
-UserSchema.index({ email: 1 });
-
 export const UserModel = model<IUserDocument>('User', UserSchema);

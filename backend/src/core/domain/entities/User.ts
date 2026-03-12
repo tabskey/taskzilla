@@ -5,6 +5,7 @@ export interface UserProps {
   name: string;
   email: string;
   passwordHash: string;
+  role?:        'admin' | 'member';
 }
 
 export class User {
@@ -23,17 +24,8 @@ export class User {
     return Result.ok(new User(props));
   }
 
-
-  get name() {
-    return this.props.name;
-  }
-
-  get email() {
-    return this.props.email;
-  }
-
-  get passwordHash() {
-    return this.props.passwordHash;
-  }
-
+  get name():         string              { return this.props.name; }
+  get email():        string              { return this.props.email; }
+  get passwordHash(): string              { return this.props.passwordHash; }
+  get role():         'admin' | 'member'  { return this.props.role ?? 'member'; }
 }

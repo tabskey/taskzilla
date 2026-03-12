@@ -12,6 +12,7 @@ export class MongoUserRepository implements IUserRepository {
       name:         doc.name,
       email:        doc.email,
       passwordHash: doc.passwordHash,
+      role:         doc.role,
     }).getValue();
   }
 
