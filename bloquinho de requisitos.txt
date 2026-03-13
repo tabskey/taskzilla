@@ -1,0 +1,16 @@
+HTTP Request
+    │
+    ▼
+[2] MIDDLEWARES          → JWT + Sanitização
+    │
+    ▼
+[3] CONTROLLER           → Zod + DTO
+    │
+    ▼
+[4] USE CASE             → Regra de negócio (depende só de Ports)
+    │
+    ▼
+[5] REPOSITORY           → Prisma / Mongoose
+    │
+    ▼
+[6] RESPONSE             → Retorno padronizado
