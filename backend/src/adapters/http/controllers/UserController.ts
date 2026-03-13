@@ -1,12 +1,16 @@
 import { Request, Response } from 'express';
 import { CreateUserUseCase } from '../../../core/application/use-cases/CreateUserUseCase';
+import { GetMeUseCase } from '../../../core/application/use-cases/GetmeUseCase';
 import { UserErrors } from '../../../core/domain/errors/UserErrors';
 import { CreateUserSchema } from '../schemas/CreateUserSchema';
 import { HttpResponse } from '../helpers/HttpResponse';
 
 export class UserController {
 
-  constructor(private readonly createUserUseCase: CreateUserUseCase) {}
+   constructor(
+    private readonly createUserUseCase: CreateUserUseCase,
+    private readonly getMeUseCase:      GetMeUseCase,
+  ) {}
 
   async createUser(req: Request, res: Response): Promise<void> {
 
@@ -26,7 +30,6 @@ export class UserController {
       password: parsed.data.password,
     };
 
-    // 3. executa o use case
     const result = await this.createUserUseCase.execute(dto);
 
     if (result.isFailure) {
@@ -42,5 +45,18 @@ export class UserController {
     }
 
     HttpResponse.created(res, result.getValue());
+  }
+  
+    async getMe(req: Request, res: Response): Promise<void> {
+    const email = req.user!.email;
+ 
+    const result = await this.getMeUseCase.execute(email);
+ 
+    if (result.isFailure) {
+      HttpResponse.notFound(res, result.error!);
+      return;
+    }
+ 
+    HttpResponse.ok(res, result.getValue());
   }
 }
