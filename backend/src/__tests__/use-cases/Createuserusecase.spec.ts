@@ -5,8 +5,10 @@ import { User } from '../../core/domain/entities/User';
 
 // mock do repositório — sem banco de dados
 const makeRepositoryMock = (overrides?: Partial<IUserRepository>): IUserRepository => ({
-  findByEmail: jest.fn().mockResolvedValue(null),
-  save:        jest.fn().mockResolvedValue(undefined),
+   findByEmail:     jest.fn().mockResolvedValue(null),
+  findManyByEmail: jest.fn().mockResolvedValue([]),
+  save:            jest.fn().mockResolvedValue(undefined),
+  saveMany:        jest.fn().mockResolvedValue(undefined),
   ...overrides,
 });
 

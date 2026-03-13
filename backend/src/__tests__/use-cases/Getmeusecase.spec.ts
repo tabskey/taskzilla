@@ -4,8 +4,10 @@ import { UserErrors } from '../../core/domain/errors/UserErrors';
 import { User } from '../../core/domain/entities/User';
 
 const makeRepositoryMock = (overrides?: Partial<IUserRepository>): IUserRepository => ({
-  findByEmail: jest.fn().mockResolvedValue(null),
-  save:        jest.fn().mockResolvedValue(undefined),
+  findByEmail:     jest.fn().mockResolvedValue(null),
+  findManyByEmail: jest.fn().mockResolvedValue([]),
+  save:            jest.fn().mockResolvedValue(undefined),
+  saveMany:        jest.fn().mockResolvedValue(undefined),
   ...overrides,
 });
 
