@@ -1,80 +1,221 @@
+import { Request, Response, NextFunction } from 'express';
+import { AuthController } from '../../adapters/http/controllers/AuthController';
 import { LoginUseCase } from '../../core/application/use-cases/LoginUseCase';
-import { IUserRepository } from '../../core/application/ports/IUserRepository';
+import { RefreshTokenUseCase, RevokeTokensUseCase } from '../../core/application/use-cases/RefreshTokenUseCase';
 import { UserErrors } from '../../core/domain/errors/UserErrors';
-import { User } from '../../core/domain/entities/User';
-import bcrypt from 'bcrypt';
+import { Result } from '../../core/shared/Results';
 
-const makeRepositoryMock = (overrides?: Partial<IUserRepository>): IUserRepository => ({
-  findByEmail:     jest.fn().mockResolvedValue(null),
-  findManyByEmail: jest.fn().mockResolvedValue([]),
-  save:            jest.fn().mockResolvedValue(undefined),
-  saveMany:        jest.fn().mockResolvedValue(undefined),
-  linkGoogle:      jest.fn().mockResolvedValue(undefined),
-  ...overrides,
-});
+const makeMockResponse = () => {
+  const res = {} as Response;
+  res.status = jest.fn().mockReturnValue(res);
+  res.json   = jest.fn().mockReturnValue(res);
+  return res;
+};
 
-describe('LoginUseCase', () => {
+const makeMockRequest = (body = {}, user = {}): Partial<Request> => ({ body, user: user as any });
+const makeMockNext    = (): NextFunction => jest.fn();
 
-  beforeEach(() => {
-    process.env.JWT_SECRET = 'test_secret';
-  });
+const makeLoginUseCaseMock        = (): jest.Mocked<LoginUseCase>        => ({ execute: jest.fn() } as any);
+const makeRefreshTokenUseCaseMock = (): jest.Mocked<RefreshTokenUseCase> => ({ execute: jest.fn() } as any);
+const makeRevokeTokensUseCaseMock = (): jest.Mocked<RevokeTokensUseCase> => ({ execute: jest.fn() } as any);
 
-  it('deve retornar token com credenciais válidas', async () => {
-    const passwordHash = await bcrypt.hash('123456', 10);
+describe('AuthController', () => {
 
-    const existingUser = User.create({
-      name:         'Alice Costa',
-      email:        'alice@taskflow.io',
-      passwordHash,
-      authProvider: 'local',
-    }).getValue();
+  describe('login()', () => {
 
-    const repo    = makeRepositoryMock({ findByEmail: jest.fn().mockResolvedValue(existingUser) });
-    const useCase = new LoginUseCase(repo);
+    it('deve retornar 200 com accessToken e refreshToken em credenciais válidas', async () => {
+      const loginUseCase        = makeLoginUseCaseMock();
+      const refreshTokenUseCase = makeRefreshTokenUseCaseMock();
+      const revokeTokensUseCase = makeRevokeTokensUseCaseMock();
 
-    const result = await useCase.execute({
-      email:    'alice@taskflow.io',
-      password: '123456',
+      loginUseCase.execute.mockResolvedValue(
+        Result.ok({
+          accessToken:  'access_jwt',
+          refreshToken: 'refresh_token',
+          user:         { name: 'Alice Costa', email: 'alice@taskflow.io', role: 'member' },
+        })
+      );
+
+      const controller = new AuthController(loginUseCase, refreshTokenUseCase, revokeTokensUseCase);
+      const req        = makeMockRequest({ email: 'alice@taskflow.io', password: '123456' });
+      const res        = makeMockResponse();
+      const next       = makeMockNext();
+
+      await controller.login(req as Request, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+      expect(next).not.toHaveBeenCalled();
     });
 
-    expect(result.isSuccess).toBe(true);
-    expect(result.getValue().token).toBeDefined();
-    expect(result.getValue().user.email).toBe('alice@taskflow.io');
-  });
+    it('deve retornar 400 com email inválido — falha no Zod', async () => {
+      const loginUseCase        = makeLoginUseCaseMock();
+      const refreshTokenUseCase = makeRefreshTokenUseCaseMock();
+      const revokeTokensUseCase = makeRevokeTokensUseCaseMock();
+      const controller          = new AuthController(loginUseCase, refreshTokenUseCase, revokeTokensUseCase);
 
-  it('deve falhar se usuário não existir', async () => {
-    const repo    = makeRepositoryMock();
-    const useCase = new LoginUseCase(repo);
+      const req  = makeMockRequest({ email: 'email-invalido', password: '123456' });
+      const res  = makeMockResponse();
+      const next = makeMockNext();
 
-    const result = await useCase.execute({
-      email:    'naoexiste@taskflow.io',
-      password: '123456',
+      await controller.login(req as Request, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(loginUseCase.execute).not.toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
     });
 
-    expect(result.isFailure).toBe(true);
-    expect(result.error).toBe(UserErrors.INVALID_CREDENTIALS);
-  });
+    it('deve retornar 400 com senha vazia — falha no Zod', async () => {
+      const loginUseCase        = makeLoginUseCaseMock();
+      const refreshTokenUseCase = makeRefreshTokenUseCaseMock();
+      const revokeTokensUseCase = makeRevokeTokensUseCaseMock();
+      const controller          = new AuthController(loginUseCase, refreshTokenUseCase, revokeTokensUseCase);
 
-  it('deve falhar com senha incorreta', async () => {
-    const passwordHash = await bcrypt.hash('123456', 10);
+      const req  = makeMockRequest({ email: 'alice@taskflow.io', password: '' });
+      const res  = makeMockResponse();
+      const next = makeMockNext();
 
-   const existingUser = User.create({
-    name:         'Alice Costa',
-    email:        'alice@taskflow.io',
-    passwordHash,
-    authProvider: 'local',
-  }).getValue();
+      await controller.login(req as Request, res, next);
 
-    const repo    = makeRepositoryMock({ findByEmail: jest.fn().mockResolvedValue(existingUser) });
-    const useCase = new LoginUseCase(repo);
-
-    const result = await useCase.execute({
-      email:    'alice@taskflow.io',
-      password: 'senha_errada',
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(loginUseCase.execute).not.toHaveBeenCalled();
     });
 
-    expect(result.isFailure).toBe(true);
-    expect(result.error).toBe(UserErrors.INVALID_CREDENTIALS);
+    it('deve retornar 401 com credenciais inválidas', async () => {
+      const loginUseCase        = makeLoginUseCaseMock();
+      const refreshTokenUseCase = makeRefreshTokenUseCaseMock();
+      const revokeTokensUseCase = makeRevokeTokensUseCaseMock();
+
+      loginUseCase.execute.mockResolvedValue(Result.fail(UserErrors.INVALID_CREDENTIALS));
+
+      const controller = new AuthController(loginUseCase, refreshTokenUseCase, revokeTokensUseCase);
+      const req        = makeMockRequest({ email: 'alice@taskflow.io', password: 'senha_errada' });
+      const res        = makeMockResponse();
+      const next       = makeMockNext();
+
+      await controller.login(req as Request, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false, error: UserErrors.INVALID_CREDENTIALS })
+      );
+    });
+
+    it('deve chamar next com erro em caso de exceção inesperada', async () => {
+      const loginUseCase        = makeLoginUseCaseMock();
+      const refreshTokenUseCase = makeRefreshTokenUseCaseMock();
+      const revokeTokensUseCase = makeRevokeTokensUseCaseMock();
+      const error               = new Error('Erro inesperado');
+
+      loginUseCase.execute.mockRejectedValue(error);
+
+      const controller = new AuthController(loginUseCase, refreshTokenUseCase, revokeTokensUseCase);
+      const req        = makeMockRequest({ email: 'alice@taskflow.io', password: '123456' });
+      const res        = makeMockResponse();
+      const next       = makeMockNext();
+
+      await controller.login(req as Request, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+
+  });
+
+  describe('refresh()', () => {
+
+    it('deve retornar 200 com novo par de tokens', async () => {
+      const loginUseCase        = makeLoginUseCaseMock();
+      const refreshTokenUseCase = makeRefreshTokenUseCaseMock();
+      const revokeTokensUseCase = makeRevokeTokensUseCaseMock();
+
+      refreshTokenUseCase.execute.mockResolvedValue(
+        Result.ok({ accessToken: 'new_access', refreshToken: 'new_refresh' })
+      );
+
+      const controller = new AuthController(loginUseCase, refreshTokenUseCase, revokeTokensUseCase);
+      const req        = makeMockRequest({ refreshToken: 'valid_refresh_token' });
+      const res        = makeMockResponse();
+      const next       = makeMockNext();
+
+      await controller.refresh(req as Request, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
+
+    it('deve retornar 400 sem refreshToken no body', async () => {
+      const loginUseCase        = makeLoginUseCaseMock();
+      const refreshTokenUseCase = makeRefreshTokenUseCaseMock();
+      const revokeTokensUseCase = makeRevokeTokensUseCaseMock();
+      const controller          = new AuthController(loginUseCase, refreshTokenUseCase, revokeTokensUseCase);
+
+      const req  = makeMockRequest({});
+      const res  = makeMockResponse();
+      const next = makeMockNext();
+
+      await controller.refresh(req as Request, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(refreshTokenUseCase.execute).not.toHaveBeenCalled();
+    });
+
+    it('deve retornar 401 com token inválido', async () => {
+      const loginUseCase        = makeLoginUseCaseMock();
+      const refreshTokenUseCase = makeRefreshTokenUseCaseMock();
+      const revokeTokensUseCase = makeRevokeTokensUseCaseMock();
+
+      refreshTokenUseCase.execute.mockResolvedValue(Result.fail('REFRESH_TOKEN_REVOKED'));
+
+      const controller = new AuthController(loginUseCase, refreshTokenUseCase, revokeTokensUseCase);
+      const req        = makeMockRequest({ refreshToken: 'revoked_token' });
+      const res        = makeMockResponse();
+      const next       = makeMockNext();
+
+      await controller.refresh(req as Request, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+    });
+
+  });
+
+  describe('logout()', () => {
+
+    it('deve retornar 200 e revogar todos os tokens', async () => {
+      const loginUseCase        = makeLoginUseCaseMock();
+      const refreshTokenUseCase = makeRefreshTokenUseCaseMock();
+      const revokeTokensUseCase = makeRevokeTokensUseCaseMock();
+
+      revokeTokensUseCase.execute.mockResolvedValue(Result.ok(undefined));
+
+      const controller = new AuthController(loginUseCase, refreshTokenUseCase, revokeTokensUseCase);
+      const req        = makeMockRequest({}, { email: 'alice@taskflow.io', role: 'member' });
+      const res        = makeMockResponse();
+      const next       = makeMockNext();
+
+      await controller.logout(req as Request, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(revokeTokensUseCase.execute).toHaveBeenCalledWith('alice@taskflow.io');
+    });
+
+    it('deve chamar next com erro em caso de exceção inesperada', async () => {
+      const loginUseCase        = makeLoginUseCaseMock();
+      const refreshTokenUseCase = makeRefreshTokenUseCaseMock();
+      const revokeTokensUseCase = makeRevokeTokensUseCaseMock();
+      const error               = new Error('Erro inesperado');
+
+      revokeTokensUseCase.execute.mockRejectedValue(error);
+
+      const controller = new AuthController(loginUseCase, refreshTokenUseCase, revokeTokensUseCase);
+      const req        = makeMockRequest({}, { email: 'alice@taskflow.io' });
+      const res        = makeMockResponse();
+      const next       = makeMockNext();
+
+      await controller.logout(req as Request, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
+
   });
 
 });

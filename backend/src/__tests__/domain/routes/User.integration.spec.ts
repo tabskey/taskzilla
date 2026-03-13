@@ -85,7 +85,8 @@ describe('POST /api/auth/login', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.token).toBeDefined();
+    expect(res.body.data.accessToken).toBeDefined();
+    expect(res.body.data.refreshToken).toBeDefined();
   });
 
   it('deve retornar 401 com senha incorreta', async () => {
@@ -121,7 +122,7 @@ describe('GET /api/users/me', () => {
       .post('/api/auth/login')
       .send({ email: 'alice@taskflow.io', password: '123456' });
 
-    token = res.body.data.token;
+    token = res.body.data.accessToken;
   });
 
   it('deve retornar os dados do usuário logado', async () => {

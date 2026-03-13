@@ -9,12 +9,9 @@ export interface JwtPayload {
 
 declare global {
   namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
+    interface User extends JwtPayload {}
   }
 }
-
 export function authenticate(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
 
