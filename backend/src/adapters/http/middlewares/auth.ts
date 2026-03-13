@@ -7,7 +7,6 @@ export interface JwtPayload {
   role:  'admin' | 'member';
 }
 
-// extende o Request do Express para carregar o usuário autenticado
 declare global {
   namespace Express {
     interface Request {
