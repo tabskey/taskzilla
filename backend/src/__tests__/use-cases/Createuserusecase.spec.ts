@@ -5,13 +5,13 @@ import { User } from '../../core/domain/entities/User';
 
 // mock do repositório — sem banco de dados
 const makeRepositoryMock = (overrides?: Partial<IUserRepository>): IUserRepository => ({
-   findByEmail:     jest.fn().mockResolvedValue(null),
+  findByEmail:     jest.fn().mockResolvedValue(null),
   findManyByEmail: jest.fn().mockResolvedValue([]),
   save:            jest.fn().mockResolvedValue(undefined),
   saveMany:        jest.fn().mockResolvedValue(undefined),
+  linkGoogle:      jest.fn().mockResolvedValue(undefined),
   ...overrides,
 });
-
 describe('CreateUserUseCase', () => {
 
   const validDTO = {
@@ -34,10 +34,11 @@ describe('CreateUserUseCase', () => {
 
   it('deve falhar se email já estiver em uso', async () => {
     const existingUser = User.create({
-      name:         'Alice Costa',
-      email:        'alice@taskflow.io',
-      passwordHash: 'hash',
-    }).getValue();
+    name:         'Alice Costa',
+    email:        'alice@taskflow.io',
+    passwordHash: 'hash',
+    authProvider: 'local',
+  }).getValue();
 
     const repo    = makeRepositoryMock({ findByEmail: jest.fn().mockResolvedValue(existingUser) });
     const useCase = new CreateUserUseCase(repo);

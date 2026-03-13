@@ -8,16 +8,17 @@ const makeRepositoryMock = (overrides?: Partial<IUserRepository>): IUserReposito
   findManyByEmail: jest.fn().mockResolvedValue([]),
   save:            jest.fn().mockResolvedValue(undefined),
   saveMany:        jest.fn().mockResolvedValue(undefined),
+  linkGoogle:      jest.fn().mockResolvedValue(undefined),
   ...overrides,
 });
-
 describe('GetMeUseCase', () => {
 
   it('deve retornar os dados do usuário logado', async () => {
     const existingUser = User.create({
       name:         'Alice Costa',
       email:        'alice@taskflow.io',
-      passwordHash: 'hash',
+      passwordHash: 'hashed_password',
+      authProvider: 'local',
     }).getValue();
 
     const repo    = makeRepositoryMock({ findByEmail: jest.fn().mockResolvedValue(existingUser) });

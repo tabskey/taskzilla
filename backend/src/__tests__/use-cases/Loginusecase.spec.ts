@@ -9,6 +9,7 @@ const makeRepositoryMock = (overrides?: Partial<IUserRepository>): IUserReposito
   findManyByEmail: jest.fn().mockResolvedValue([]),
   save:            jest.fn().mockResolvedValue(undefined),
   saveMany:        jest.fn().mockResolvedValue(undefined),
+  linkGoogle:      jest.fn().mockResolvedValue(undefined),
   ...overrides,
 });
 
@@ -22,9 +23,10 @@ describe('LoginUseCase', () => {
     const passwordHash = await bcrypt.hash('123456', 10);
 
     const existingUser = User.create({
-      name:  'Alice Costa',
-      email: 'alice@taskflow.io',
+      name:         'Alice Costa',
+      email:        'alice@taskflow.io',
       passwordHash,
+      authProvider: 'local',
     }).getValue();
 
     const repo    = makeRepositoryMock({ findByEmail: jest.fn().mockResolvedValue(existingUser) });
@@ -56,11 +58,12 @@ describe('LoginUseCase', () => {
   it('deve falhar com senha incorreta', async () => {
     const passwordHash = await bcrypt.hash('123456', 10);
 
-    const existingUser = User.create({
-      name:  'Alice Costa',
-      email: 'alice@taskflow.io',
-      passwordHash,
-    }).getValue();
+   const existingUser = User.create({
+    name:         'Alice Costa',
+    email:        'alice@taskflow.io',
+    passwordHash,
+    authProvider: 'local',
+  }).getValue();
 
     const repo    = makeRepositoryMock({ findByEmail: jest.fn().mockResolvedValue(existingUser) });
     const useCase = new LoginUseCase(repo);
